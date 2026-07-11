@@ -10,9 +10,30 @@ Admins manage users; members only ever see their own data.
 FastAPI · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2 + pydantic-settings ·
 PyJWT + Argon2 (pwdlib) · structlog · pytest + httpx · uv · Docker/Postgres
 
+
+## Project Structure
+
+```
+fastapi-zero-to-hero
+├── Dockerfile
+├── README.md
+├── alembic
+├── alembic.ini
+├── api-documentation.png
+├── app
+├── docker-compose.yml
+├── pyproject.toml
+├── taskhub.db
+├── tests
+├── uploads
+└── uv.lock
+```
+
 ## Quick start (local, SQLite)
 
 ```bash
+uv venv                        # create virtual environment
+source .venv/bin/activate      # activate virtual environment
 uv sync                        # install dependencies
 cp .env.example .env           # optional — sane defaults are built in
 uv run alembic upgrade head    # create the schema (writes ./taskhub.db)
@@ -22,6 +43,10 @@ uv run uvicorn app.main:app --reload
 Open http://localhost:8000/docs (Swagger UI) or `/redoc`. Register via
 `POST /api/v1/auth/register`, log in via `POST /api/v1/auth/login`, then use
 Swagger's **Authorize** button with the access token.
+
+
+![API Documentation](./api-documentation.png)
+
 
 To make a user an admin (roles can't be self-assigned):
 
