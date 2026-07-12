@@ -7,8 +7,15 @@ Admins manage users; members only ever see their own data.
 
 ## Stack
 
-FastAPI · SQLAlchemy 2.0 (async) · Alembic · Pydantic v2 + pydantic-settings ·
-PyJWT + Argon2 (pwdlib) · structlog · pytest + httpx · uv · Docker/Postgres
+·FastAPI 
+· SQLAlchemy 2.0 (async) 
+· Alembic 
+· Pydantic v2 + pydantic-settings 
+· PyJWT + Argon2 (pwdlib) 
+· structlog 
+· pytest + httpx 
+· uv 
+· Docker/Postgres
 
 
 ## Project Structure
