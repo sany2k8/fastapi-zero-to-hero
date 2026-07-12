@@ -1,0 +1,2 @@
+# Ignore sensitive Kubernetes Secret files
+secret.yaml

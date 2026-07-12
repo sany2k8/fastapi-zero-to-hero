@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: taskhub-migration
+  namespace: taskhub
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: sany2k8/taskhub:v2     # YOUR_DOCKERHUB_USERNAME/YOUR_IMAGE_NAME:TAG
+        imagePullPolicy: IfNotPresent
+        command:
+        - alembic
+        - upgrade
+        - head
+        env:
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: taskhub-secret
+              key: SECRET_KEY
+        - name: DATABASE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: taskhub-config
+              key: DATABASE_HOST
+        - name: DATABASE_USER
+          valueFrom:
+            configMapKeyRef:
+              name: taskhub-config
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: taskhub-secret
+              key: POSTGRES_PASSWORD
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: taskhub-config
+              key: POSTGRES_DB
