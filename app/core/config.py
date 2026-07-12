@@ -35,11 +35,24 @@ class Settings(BaseSettings):
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
-    # Database
-    database_url: str = "sqlite+aiosqlite:///./taskhub.db"
+    # Database – component fields (override just what changes per environment)
+    database_driver: str = "postgresql+asyncpg"
+    database_host: str = "localhost"
+    database_port: int = 5432
+    database_name: str = "taskhub"
+    database_user: str = "taskhub"
+    database_password: str = "taskhub"
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_echo: bool = False
+
+    @property
+    def database_url(self) -> str:
+        """Assemble DATABASE_URL from component fields."""
+        return (
+            f"{self.database_driver}://{self.database_user}:{self.database_password}"
+            f"@{self.database_host}:{self.database_port}/{self.database_name}"
+        )
 
     # Auth
     secret_key: str = INSECURE_DEFAULT_SECRET

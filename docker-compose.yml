@@ -20,7 +20,7 @@ services:
         condition: service_healthy
     environment:
       ENVIRONMENT: production
-      DATABASE_URL: postgresql+asyncpg://taskhub:taskhub@db:5432/taskhub
+      DATABASE_HOST: db
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in your shell or a .env file}
       LOG_JSON: "true"
       CORS_ORIGINS: '["http://localhost:3000"]'

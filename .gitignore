@@ -8,3 +8,4 @@ uploads/
 .ruff_cache/
 dist/
 CLAUDE.local.md
+.DS_Store
