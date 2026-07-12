@@ -36,27 +36,53 @@ fastapi-zero-to-hero
 └── uv.lock
 ```
 
-## Quick start (local, SQLite)
+## Running the Project
 
+You can run TaskHub using a manual local process, Docker Compose, or Kubernetes.
+
+### 1. Manual Process (Local Development)
+
+#### Quick Start with SQLite
+This is the simplest way to get up and running without setting up external databases:
 ```bash
-uv venv                        # create virtual environment
-source .venv/bin/activate      # activate virtual environment
-uv sync                        # install dependencies
-cp .env.example .env           # optional — sane defaults are built in
-uv run alembic upgrade head    # create the schema (writes ./taskhub.db)
+# 1. Create and activate a virtual environment
+uv venv
+source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+
+# 2. Install dependencies
+uv sync
+
+# 3. Copy example environment file
+cp .env.example .env
+
+# 4. Run database migrations (this creates the local sqlite file ./taskhub.db)
+uv run alembic upgrade head
+
+# 5. Start the FastAPI development server
 uv run uvicorn app.main:app --reload
 ```
-
-Open http://localhost:8000/docs (Swagger UI) or `/redoc`. Register via
-`POST /api/v1/auth/register`, log in via `POST /api/v1/auth/login`, then use
-Swagger's **Authorize** button with the access token.
-
+Open [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI) or `/redoc` in your browser. Register via `POST /api/v1/auth/register`, log in via `POST /api/v1/auth/login`, then use Swagger's **Authorize** button with the access token.
 
 ![API Documentation](./api-documentation.png)
 
+#### Running with PostgreSQL
+If you want to run the application manually but connect to a PostgreSQL database instead of SQLite:
+1. Ensure you have a running PostgreSQL instance (with database name, user, and password set).
+2. Configure `.env` with your Postgres connection details (refer to [app/core/config.py](file:///Users/sany/Projects/fastapi-zero-to-hero/app/core/config.py) for the schema):
+   ```env
+   DATABASE_HOST=localhost
+   DATABASE_PORT=5432
+   DATABASE_NAME=taskhub
+   DATABASE_USER=taskhub
+   DATABASE_PASSWORD=your_password
+   ```
+3. Run migrations and start the server:
+   ```bash
+   uv run alembic upgrade head
+   uv run uvicorn app.main:app --reload
+   ```
 
 To make a user an admin (roles can't be self-assigned):
-
 ```bash
 uv run python -c "
 import asyncio, sqlalchemy as sa
@@ -67,13 +93,58 @@ async def main():
 asyncio.run(main())"
 ```
 
-## Quick start (Docker, Postgres)
-
+### 2. Docker (Docker Compose)
+To run the full stack (FastAPI app + PostgreSQL database) inside containers:
 ```bash
+# Generate a secret key and boot the stack
 SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))') docker compose up --build
 ```
+This command:
+- Starts a PostgreSQL database container.
+- Builds the FastAPI application Docker image.
+- Performs Alembic migrations on startup.
+- Exposes the application on [http://localhost:8000](http://localhost:8000).
 
-Runs migrations, then serves on http://localhost:8000 with JSON logs.
+To shut down the stack:
+```bash
+docker compose down -v
+```
+
+### 3. Kubernetes (Docker Desktop / AWS EC2)
+For production-grade deployments, Kubernetes configurations are provided in the [fastapi-on-k8s](file:///Users/sany/Projects/fastapi-zero-to-hero/fastapi-on-k8s) directory.
+
+1. **Navigate to the Kubernetes folder**:
+   ```bash
+   cd fastapi-on-k8s
+   ```
+2. **Review the deployment guide**: Read the detailed instructions in [fastapi-on-k8s/README.md](file:///Users/sany/Projects/fastapi-zero-to-hero/fastapi-on-k8s/README.md).
+3. **Deploy the stack**:
+   - Create namespace, secrets, configmap, and persistent volume claim:
+     ```bash
+     kubectl apply -f namespace.yaml
+     kubectl apply -f secret.yaml
+     kubectl apply -f configmap.yaml
+     kubectl apply -f postgres/
+     ```
+   - Run the database migrations job:
+     ```bash
+     kubectl apply -f api/migration-job.yaml
+     ```
+   - Deploy the API, service, and HPA:
+     ```bash
+     kubectl apply -f api/deployment.yaml
+     kubectl apply -f api/service.yaml
+     kubectl apply -f api/hpa.yaml
+     ```
+4. **Access the application**:
+   - **Local Development**: Forward traffic to your localhost:
+     ```bash
+     kubectl port-forward svc/api 8000:8000 -n taskhub
+     ```
+     Open [http://localhost:8000/docs](http://localhost:8000/docs).
+   - **AWS EC2**: Access directly using port `30080` (NodePort):
+     `http://<EC2_PUBLIC_IP>:30080/docs`
+
 
 ## Tests
 
