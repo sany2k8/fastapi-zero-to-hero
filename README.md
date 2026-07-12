@@ -7,7 +7,7 @@ Admins manage users; members only ever see their own data.
 
 ## Stack
 
-·FastAPI 
+· FastAPI 
 · SQLAlchemy 2.0 (async) 
 · Alembic 
 · Pydantic v2 + pydantic-settings 
