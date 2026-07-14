@@ -82,7 +82,7 @@ docker push YOUR_DOCKERHUB_USERNAME/YOUR_IMAGE_NAME:TAG
 
 > **Important:** Replace `YOUR_DOCKERHUB_USERNAME` and `YOUR_IMAGE_NAME` in `api/deployment.yaml` and `api/migration-job.yaml` with your actual DockerHub username and image name before deploying.
 > 
-> **Tip for Local Development:** If you are running Kubernetes locally (e.g., Docker Desktop, Minikube, or KinD), you can skip pushing to a registry. Simply build the image locally (e.g., `docker build -t sany2k8/taskhub:v2 .`), ensure `imagePullPolicy: IfNotPresent` is set in the manifests, and Kubernetes will load the image directly from your local Docker cache.
+> **Tip for Local Development:** If you are running Kubernetes locally (e.g., Docker Desktop, Minikube, or KinD), you can skip pushing to a registry. Simply build the image locally (e.g., `docker build -t sany2k8/taskhub:v3 .`), ensure `imagePullPolicy: IfNotPresent` is set in the manifests, and Kubernetes will load the image directly from your local Docker cache.
 
 ---
 
@@ -134,11 +134,19 @@ http://<EC2_PUBLIC_IP>:30080/docs
 While NodePort works directly on EC2, it might not bind directly to `localhost` in local development clusters (like Docker Desktop, Minikube, or KinD). Use port forwarding instead:
 ```bash
 kubectl port-forward svc/api 8000:8000 -n taskhub
+kubectl port-forward svc/postgres 5433:5432 -n taskhub
 ```
 Then open your browser or Postman at:
 ```
 http://localhost:8000
 http://localhost:8000/docs
+```
+
+Use any postgresql client or psql to connect to the database,
+
+```bash
+# Using psql (via port-forwarding for local development)
+psql -h localhost -p 5433 -U taskhub -d taskhub
 ```
 
 ---
