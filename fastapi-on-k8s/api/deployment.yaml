@@ -1,122 +1,66 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api
+  name: postgres
   namespace: taskhub
 spec:
-  replicas: 2
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 1
-      maxSurge: 1
+  replicas: 1
   selector:
     matchLabels:
-      app: api
+      app: postgres
   template:
     metadata:
       labels:
-        app: api
+        app: postgres
     spec:
-      initContainers:
-      - name: wait-for-postgres
-        image: postgres:17-alpine
-        command:
-        - sh
-        - -c
-        - |
-          until pg_isready -h postgres -U taskhub
-          do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-        env:
-        - name: PGPASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: taskhub-secret
-              key: POSTGRES_PASSWORD
       containers:
-      - name: api
-        image: sany2k8/taskhub:v3    # YOUR_DOCKERHUB_USERNAME/YOUR_IMAGE_NAME:TAG
-        imagePullPolicy: IfNotPresent
+      - name: postgres
+        image: postgres:17-alpine
         ports:
-        - containerPort: 8000
-        command:
-        - sh
-        - -c
-        - |
-          alembic upgrade head
-          uvicorn app.main:app \
-            --host 0.0.0.0 \
-            --port 8000 \
-            --workers 2
+        - containerPort: 5432
         env:
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: taskhub-secret
-              key: SECRET_KEY
-        - name: ENVIRONMENT
-          valueFrom:
-            configMapKeyRef:
-              name: taskhub-config
-              key: ENVIRONMENT
-        - name: LOG_JSON
-          valueFrom:
-            configMapKeyRef:
-              name: taskhub-config
-              key: LOG_JSON
-        - name: DATABASE_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: taskhub-config
-              key: DATABASE_HOST
-        - name: DATABASE_USER
-          valueFrom:
-            configMapKeyRef:
-              name: taskhub-config
-              key: POSTGRES_USER
-        - name: DATABASE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: taskhub-secret
-              key: POSTGRES_PASSWORD
-        - name: DATABASE_NAME
+        - name: POSTGRES_DB
           valueFrom:
             configMapKeyRef:
               name: taskhub-config
               key: POSTGRES_DB
-        - name: CORS_ORIGINS
+        - name: POSTGRES_USER
           valueFrom:
             configMapKeyRef:
               name: taskhub-config
-              key: CORS_ORIGINS
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: taskhub-secret
+              key: POSTGRES_PASSWORD
         volumeMounts:
-        - name: uploads-storage
-          mountPath: /srv/uploads
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
         readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
+          exec:
+            command:
+              - pg_isready
+              - -U
+              - taskhub
           initialDelaySeconds: 10
           periodSeconds: 5
-          timeoutSeconds: 2
-          failureThreshold: 5
         livenessProbe:
-          httpGet:
-            path: /ready
-            port: 8000
+          exec:
+            command:
+              - pg_isready
+              - -U
+              - taskhub
           initialDelaySeconds: 30
           periodSeconds: 10
-          timeoutSeconds: 2
         resources:
           requests:
-            cpu: "250m"
             memory: "256Mi"
+            cpu: "250m"
           limits:
-            cpu: "500m"
             memory: "512Mi"
+            cpu: "500m"
       volumes:
-      - name: uploads-storage
-        emptyDir: {}
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc

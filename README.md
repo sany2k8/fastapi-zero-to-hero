@@ -158,12 +158,102 @@ external services needed.
 
 ## Architecture
 
-```
-Request → middleware (CORS, TrustedHost, GZip, request-id/logging, rate limit)
-        → route (app/api/v1/routes/…)      HTTP concerns only
-        → service (app/services/…)          business rules, ownership, transactions
-        → repository (app/repositories/…)   query building, pagination, soft-delete filter
-        → model (app/models/…)              SQLAlchemy tables
+```mermaid
+flowchart TB
+    subgraph Client
+        A["🌐 HTTP Client<br/>(Browser / curl / SDK)"]
+    end
+
+    subgraph Middleware["Middleware Chain (outermost → innermost)"]
+        direction TB
+        M1["CORSMiddleware<br/>Origin / preflight checks"]
+        M2["TrustedHostMiddleware<br/>Host-header validation"]
+        M3["GZipMiddleware<br/>Response compression ≥ 1 KB"]
+        M4["RequestContextMiddleware<br/>Assigns request_id, logs timing"]
+        M5["RateLimitMiddleware<br/>Global per-IP sliding window"]
+        M1 --> M2 --> M3 --> M4 --> M5
+    end
+
+    subgraph FastAPI["FastAPI Application"]
+        direction TB
+
+        subgraph DI["Dependency Injection (app/api/deps.py)"]
+            D1["OAuth2 Bearer → decode JWT"]
+            D2["get_current_user → load User from DB"]
+            D3["require_roles → RBAC guard"]
+            D4["get_pagination → page / page_size"]
+            D5["Service Factories<br/>AuthService · UserService<br/>ProjectService · TaskService"]
+            D1 --> D2 --> D3
+        end
+
+        subgraph Routes["Routes (app/api/v1/routes/)"]
+            R1["auth.py<br/>register · login · refresh"]
+            R2["projects.py<br/>CRUD + soft-delete/restore"]
+            R3["tasks.py<br/>CRUD + attachments"]
+            R4["users.py<br/>profile · admin mgmt"]
+            R5["health.py<br/>/health · /live · /ready · /metrics"]
+        end
+
+        subgraph Services["Service Layer (app/services/)"]
+            S1["AuthService<br/>hash passwords · issue JWTs"]
+            S2["ProjectService<br/>ownership checks · transactions"]
+            S3["TaskService<br/>status rules · file uploads"]
+            S4["UserService<br/>profile · admin ops"]
+            S5["EmailService<br/>background welcome email"]
+        end
+
+        subgraph Repos["Repository Layer (app/repositories/)"]
+            RP1["BaseRepository<br/>list_paginated: filter +<br/>search + sort + count"]
+            RP2["UserRepository"]
+            RP3["ProjectRepository"]
+            RP4["TaskRepository"]
+        end
+
+        subgraph Models["ORM Models (app/models/)"]
+            ORM1["User"]
+            ORM2["Project"]
+            ORM3["Task · TaskAttachment"]
+        end
+    end
+
+    subgraph DB["Database"]
+        PG[("PostgreSQL / SQLite<br/>via SQLAlchemy 2.0 async")]
+    end
+
+    subgraph ErrHandling["Global Exception Handling"]
+        EH["AppError hierarchy<br/>NotFound · Conflict · Forbidden<br/>Unauthorized · RateLimited · …"]
+        ER["Standard JSON Error Envelope<br/>{error: {code, message}, request_id}"]
+        EH --> ER
+    end
+
+    A -- "HTTP Request" --> M1
+    M5 --> Routes
+    Routes -- "Depends(...)" --> DI
+    DI -- "injects session,<br/>user, services" --> Routes
+    Routes --> Services
+    Services --> Repos
+    Services -- "raises domain<br/>exceptions" --> EH
+    Repos --> Models
+    Models -- "async queries" --> PG
+    PG -- "result rows" --> Models
+    Models --> Repos
+    Repos --> Services
+    Services -- "commit &<br/>return" --> Routes
+    Routes -- "Pydantic<br/>response model" --> M5
+    M5 --> M4 --> M3 --> M2 --> M1
+    M1 -- "HTTP Response" --> A
+    ER -. "error response" .-> A
+
+    style Client fill:#1a1a2e,stroke:#e94560,color:#eee
+    style Middleware fill:#16213e,stroke:#0f3460,color:#eee
+    style FastAPI fill:#0f3460,stroke:#533483,color:#eee
+    style DI fill:#1a1a3e,stroke:#e94560,color:#eee
+    style Routes fill:#1a1a3e,stroke:#00b4d8,color:#eee
+    style Services fill:#1a1a3e,stroke:#48bfe3,color:#eee
+    style Repos fill:#1a1a3e,stroke:#90e0ef,color:#eee
+    style Models fill:#1a1a3e,stroke:#caf0f8,color:#eee
+    style DB fill:#1b2838,stroke:#66c0f4,color:#eee
+    style ErrHandling fill:#2d142c,stroke:#e94560,color:#eee
 ```
 
 - **Routes** validate input with Pydantic schemas and declare response models;
